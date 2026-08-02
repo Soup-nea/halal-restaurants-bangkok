@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="theme-color" content="#2c5f2d">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Halal Bangkok">
+    
+    <title>Bangkok Halal Restaurants Map</title>
+    <meta name="description" content="Searchable map of verified halal restaurants in Bangkok with certification status, prayer facilities, cuisines, and community reviews.">
+    <meta property="og:title" content="Bangkok Halal Restaurants Map">
+    <meta property="og:description" content="Find verified halal restaurants, prices, prayer rooms, and cuisines in Bangkok.">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://example.com">
+    <meta property="og:image" content="https://example.com/og-image.png">
+    
+    <link rel="manifest" href="/manifest.json">
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='75' font-size='75' fill='%232c5f2d'>🍽</text></svg>">
+    <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180'><rect fill='%232c5f2d' width='180' height='180'/><text x='90' y='135' font-size='120' fill='white' text-anchor='middle'>🍽</text></svg>">
+    
+    <!-- Leaflet.js -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+    
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        html, body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            height: 100vh;
+            background: #fff;
+            color: #333;
+        }
+
+        body {
+            display: flex;
+            flex-direction: column;
+        }
+
+        header {
+            flex: 0 0 auto;
+            background: #2c5f2d;
+            color: white;
+            padding: 1rem;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            z-index: 100;
+        }
+
+        header h1 {
+            font-size: 1.5rem;
+            margin-bottom: 0.5rem;
+        }
+
+        header p {
+            font-size: 0.85rem;
+            opacity: 0.95;
+        }
+
+        .main-container {
+            display: flex;
+            flex: 1;
+            min-height: 0;
+            gap: 0;
+        }
+
+        #map {
+            flex: 1;
+            min-height: 0;
+            order: 1;
+        }
+
+        .sidebar {
+            flex: 0 0 100%;
+            order: 2;
+            display: flex;
+            flex-direction: column;
+            background: white;
+            border-top: 1px solid #e0e0e0;
+            overflow: hidden;
+        }
+
+        .filters-panel {
+            flex: 0 0 auto;
+            padding: 1rem;
+            background: #f9f9f9;
+            border-bottom: 1px solid #e0e0e0;
+            overflow-y: auto;
+            max-height: 40vh;
+        }
+
+        .filter-group {
+            margin-bottom: 1rem;
+        }
+
+        .filter-group label {
+            display: block;
+            font-weight: 500;
+            font-size: 0.85rem;
+            margin-bottom: 0.5rem;
+            color: #2c5f2d;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .filter-group select,
+        .search-input {
+            width: 100%;
+            padding: 0.5rem 0.75rem;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 0.95rem;
+            background: white;
+        }
+
+        .filter-group select:focus,
+        .search-input:focus {
+            outline: none;
+            border-color: #2c5f2d;
+            box-shadow: 0 0 0 2px rgba(44, 95, 45, 0.1);
+        }
+
+        .checkbox-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+
+        .checkbox-group label {
+            display: inline-flex;
+            align-items: center;
+            font-size: 0.85rem;
+            font-weight: normal;
+            text-transform: none;
+            margin: 0;
+            cursor: pointer;
+        }
+
+        .checkbox-group input {
+            margin-right: 0.25rem;
+            cursor: pointer;
+        }
+
+        .results-count {
+            font-size: 0.85rem;
+            color: #666;
+            padding: 0.5rem 1rem;
+            background: #f0f0f0;
+        }
+
+        #list {
+            flex: 1;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .restaurant-card {
+            padding: 1rem;
+            border-bottom: 1px solid #e0e0e0;
+            cursor: pointer;
+            transition: background 0.15s;
+        }
+
+        .restaurant-card:hover {
+            background: #f5f5f5;
+        }
+
+        .restaurant-card.active {
+            background: #e8f5e9;
+            border-left: 4px solid #2c5f2d;
+            padding-left: calc(1rem - 4px);
+        }
+
+        .restaurant-name {
+            font-weight: 600;
+            font-size: 1rem;
+            margin-bottom: 0.25rem;
+            color: #2c5f2d;
+        }
+
+        .restaurant-badges {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.4rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 0.25rem 0.5rem;
+            border-radius: 3px;
+            font-size: 0.75rem;
+            font-weight: 500;
+            white-space: nowrap;
+        }
+
+        .badge-cert-zabiha { background: #c8e6c9; color: #1b5e20; }
+        .badge-cert-authority { background: #b3e5fc; color: #01579b; }
+        .badge-cert-self { background: #fff9c4; color: #f57f17; }
+        .badge-cert-unverified { background: #f0f0f0; color: #666; }
+        .badge-price { background: #f3e5f5; color: #4a148c; }
+        .badge-prayer { background: #ffccbc; color: #bf360c; }
+
+        .restaurant-details {
+            font-size: 0.85rem;
+            color: #666;
+            line-height: 1.4;
+        }
+
+        .detail-row {
+            margin-bottom: 0.25rem;
+        }
+
+        .detail-label {
+            font-weight: 500;
+            color: #333;
+            display: inline;
+        }
+
+        .detail-value {
+            display: inline;
+        }
+
+        .detail-value a {
+            color: #2c5f2d;
+            text-decoration: none;
+        }
+
+        .detail-value a:hover {
+            text-decoration: underline;
+        }
+
+        footer {
+            flex: 0 0 auto;
+            padding: 1rem;
+            background: #f5f5f5;
+            border-top: 1px solid #e0e0e0;
+            font-size: 0.85rem;
+            text-align: center;
+            color: #666;
+        }
+
+        footer a {
+            color: #2c5f2d;
+            text-decoration: none;
+        }
+
+        footer a:hover {
+            text-decoration: underline;
+        }
+
+        /* Mobile: stack map + sidebar vertically */
+        @media (max-width: 768px) {
+            .main-container {
+                flex-direction: column;
+            }
+
+            #map {
+                flex: 0 0 50vh;
+                order: 1;
+            }
+
+            .sidebar {
+                flex: 1;
+                order: 2;
+            }
+
+            header h1 {
+                font-size: 1.25rem;
+            }
+
+            .filters-panel {
+                max-height: 30vh;
+            }
+        }
+
+        /* Tablet: map on left, sidebar on right */
+        @media (min-width: 769px) {
+            .main-container {
+                flex-direction: row;
+            }
+
+            #map {
+                flex: 1;
+                order: 1;
+            }
+
+            .sidebar {
+                flex: 0 0 380px;
+                order: 2;
+            }
+
+            .filters-panel {
+                max-height: none;
+            }
+        }
+
+        /* Loading state */
+        .loading {
+            opacity: 0.6;
+            pointer-events: none;
+        }
+
+        .empty-state {
+            padding: 2rem 1rem;
+            text-align: center;
+            color: #999;
+        }
+
+        .empty-state p {
+            margin-bottom: 1rem;
+        }
+
+        /* Dark mode support */
+        @media (prefers-color-scheme: dark) {
+            body {
+                background: #1a1a1a;
+                color: #e0e0e0;
+            }
+
+            header {
+                background: #1b4620;
+            }
+
+            .sidebar {
+                background: #2a2a2a;
+                border-top-color: #444;
+            }
+
+            .filters-panel {
+                background: #333;
+                border-bottom-color: #444;
+            }
+
+            .filter-group select,
+            .search-input {
+                background: #444;
+                border-color: #555;
+                color: #e0e0e0;
+            }
+
+            .restaurant-card {
+                border-bottom-color: #444;
+                color: #e0e0e0;
+            }
+
+            .restaurant-card:hover {
+                background: #333;
+            }
+
+            .restaurant-card.active {
+                background: #1b3a1b;
+                border-left-color: #66bb6a;
+            }
+
+            .restaurant-name {
+                color: #66bb6a;
+            }
+
+            .restaurant-details {
+                color: #aaa;
+            }
+
+            .empty-state {
+                color: #666;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>🍽️ Bangkok Halal Restaurants</h1>
+        <p>Find verified halal-certified dining options near you</p>
+    </header>
+
+    <div class="main-container">
+        <div id="map"></div>
+        
+        <div class="sidebar">
+            <div class="filters-panel">
+                <div class="filter-group">
+                    <input type="text" id="searchInput" class="search-input" placeholder="Search restaurant name or area...">
+                </div>
+
+                <div class="filter-group">
+                    <label for="certFilter">Halal Certification</label>
+                    <select id="certFilter">
+                        <option value="">All Certifications</option>
+                        <option value="Zabiha">Zabiha (Traditional)</option>
+                        <option value="Halal Authority">Halal Authority Certified</option>
+                        <option value="Self-certified">Self-Certified</option>
+                        <option value="Unverified">Unverified</option>
+                    </select>
+                </div>
+
+                <div class="filter-group">
+                    <label>Cuisine Types</label>
+                    <div class="checkbox-group" id="cuisineCheckboxes"></div>
+                </div>
+
+                <div class="filter-group">
+                    <label for="priceFilter">Price Range</label>
+                    <select id="priceFilter">
+                        <option value="">All Prices</option>
+                        <option value="$">$ (Budget)</option>
+                        <option value="$$">$$ (Moderate)</option>
+                        <option value="$$$">$$$ (Premium)</option>
+                    </select>
+                </div>
+
+                <div class="filter-group">
+                    <label for="prayerFilter">Prayer Facilities</label>
+                    <select id="prayerFilter">
+                        <option value="">All</option>
+                        <option value="yes">Has Prayer Room</option>
+                        <option value="no">No Prayer Room</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="results-count" id="resultsCount">Loading...</div>
+            <div id="list"></div>
+        </div>
+    </div>
+
+    <footer>
+        <p>🌐 Data licensed under <a href="https://opendatacommons.org/licenses/odbl/" target="_blank">ODbL 1.0</a> | 
+        <a href="/places.html">Directory</a> | 
+        <a href="/data/halal_restaurants_bangkok.geojson">Download GeoJSON</a> | 
+        <a href="#" id="feedbackLink">Send Feedback</a></p>
+    </footer>
+
+    <script src="/js/data.js"></script>
+    <script src="/js/app.js"></script>
+</body>
+</html>

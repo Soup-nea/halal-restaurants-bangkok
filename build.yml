@@ -1,0 +1,43 @@
+name: Build & Deploy
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'data/restaurants.csv'
+      - 'build.py'
+      - 'build_seo.py'
+      - '.github/workflows/build.yml'
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+    
+    - name: Run build pipeline
+      run: |
+        python build.py
+        python build_seo.py
+    
+    - name: Deploy to GitHub Pages
+      uses: peaceiris/actions-gh-pages@v3
+      with:
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        publish_dir: ./docs
+        cname: example.com
+        force_orphan: false
+
+    - name: Upload artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: site
+        path: docs/
+        retention-days: 30
